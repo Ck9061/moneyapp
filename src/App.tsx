@@ -112,10 +112,47 @@ function App() {
       .single();
 
     if (error) {
-      console.error(error);
+      console.error('❌ 核销失败:', error);
+      alert(`核销失败: ${error.message}`);
       return;
     }
+    console.log('✅ 核销成功');
     setRecords(prev => prev.map(item => (item.id === record.id ? (data as SettlementRecord) : item)));
+  };
+
+  const handleUpdateActualPaid = async (recordId: string, newAmount: number) => {
+    if (newAmount < 0) {
+      alert('实转金额不能为负数');
+      return;
+    }
+
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+
+    if (newAmount > record.expected_transfer) {
+      alert(`实转金额不能超过应转金额 $${record.expected_transfer.toFixed(2)}`);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('settlement_records')
+        .update({ actual_paid: newAmount })
+        .eq('id', recordId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ 更新实转金额失败:', error);
+        alert(`更新失败: ${error.message}`);
+        return;
+      }
+      console.log('✅ 实转金额已更新:', newAmount);
+      setRecords(prev => prev.map(item => (item.id === recordId ? (data as SettlementRecord) : item)));
+    } catch (err) {
+      console.error('❌ 异常:', err);
+      alert(`更新出错: ${err}`);
+    }
   };
 
   const handleAddAccount = async (name: string) => {
@@ -180,6 +217,7 @@ function App() {
           totalDue={totalDue}
           totalSent={totalSent}
           onVerify={handleVerifyRecord}
+          onUpdateActualPaid={handleUpdateActualPaid}
           onExport={() => handleExport(records, accounts)}
           loading={loading}
         />
