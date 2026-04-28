@@ -40,22 +40,48 @@ function App() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const { data: accountRows } = await supabase.from('payment_accounts').select('id,name').order('name');
-      const { data: recordRows } = await supabase
-        .from('settlement_records')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const { data: accountRows, error: accountError } = await supabase
+          .from('payment_accounts')
+          .select('id,name')
+          .order('name');
+        
+        if (accountError) {
+          console.error('❌ 加载户口失败:', accountError);
+          alert(`加载户口失败: ${accountError.message}\n\n请确保在 Supabase 中创建了 payment_accounts 表`);
+        } else {
+          if (accountRows) {
+            console.log('✅ 加载成功，户口数:', accountRows.length, accountRows);
+            setAccounts(accountRows as PaymentAccount[]);
+            if (!selectedAccountId && accountRows.length > 0) {
+              setSelectedAccountId((accountRows[0] as PaymentAccount).id);
+            }
+          }
+        }
 
-      if (accountRows) setAccounts(accountRows as PaymentAccount[]);
-      if (recordRows) setRecords(recordRows as SettlementRecord[]);
-      if (!selectedAccountId && accountRows?.length) {
-        setSelectedAccountId((accountRows[0] as PaymentAccount).id);
+        const { data: recordRows, error: recordError } = await supabase
+          .from('settlement_records')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (recordError) {
+          console.error('❌ 加载对账记录失败:', recordError);
+        } else {
+          if (recordRows) {
+            console.log('✅ 加载对账记录成功，记录数:', recordRows.length);
+            setRecords(recordRows as SettlementRecord[]);
+          }
+        }
+      } catch (err) {
+        console.error('❌ 数据加载异常:', err);
+        alert('数据加载失败，请检查浏览器控制台');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     load();
-  }, [selectedAccountId]);
+  }, []);
 
   const handleCreateRecord = async (amount: number, accountId: string) => {
     const result = calc(amount);
@@ -93,13 +119,22 @@ function App() {
   };
 
   const handleAddAccount = async (name: string) => {
-    const { data, error } = await supabase.from('payment_accounts').insert({ name }).select().single();
-    if (error) {
-      console.error(error);
-      return;
+    try {
+      const { data, error } = await supabase.from('payment_accounts').insert({ name }).select().single();
+      if (error) {
+        console.error('❌ 添加户口失败:', error);
+        alert(`添加户口失败: ${error.message}`);
+        return;
+      }
+      console.log('✅ 户口添加成功:', data);
+      // 添加到本地状态
+      setAccounts(prev => [...prev, data as PaymentAccount]);
+      setSelectedAccountId((data as PaymentAccount).id);
+      alert(`✅ 户口 "${name}" 添加成功！`);
+    } catch (err) {
+      console.error('❌ 异常:', err);
+      alert(`添加户口出错: ${err}`);
     }
-    setAccounts(prev => [...prev, data as PaymentAccount]);
-    setSelectedAccountId((data as PaymentAccount).id);
   };
 
   return (

@@ -20,6 +20,20 @@ export const RecordEntry = ({
   const [amount, setAmount] = useState(0);
   const preview = useMemo(() => calc(amount), [amount]);
 
+  if (accounts.length === 0) {
+    return (
+      <div className="max-w-md mx-auto rounded-[2rem] border border-red-200 bg-red-50 p-6 shadow-sm sm:max-w-full">
+        <h2 className="text-red-600 text-sm font-medium mb-3">⚠️ 还没有户口</h2>
+        <p className="text-red-700 text-sm mb-4">
+          请先在右侧「户口管理」中添加收款户口，然后才能开始记账。
+        </p>
+        <p className="text-xs text-red-600">
+          <strong>提示：</strong>如果添加户口后还是看不到，请刷新页面或检查浏览器控制台查看错误信息。
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-md mx-auto rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm sm:max-w-full">
       <h2 className="text-gray-400 text-sm font-medium mb-6">新增收款记录</h2>
