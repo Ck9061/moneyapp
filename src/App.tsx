@@ -123,16 +123,11 @@ function App() {
   const handleUpdateActualPaid = async (recordId: string, newAmount: number) => {
     if (newAmount < 0) {
       alert('实转金额不能为负数');
-      return;
+      return false;
     }
 
     const record = records.find(r => r.id === recordId);
-    if (!record) return;
-
-    if (newAmount > record.expected_transfer) {
-      alert(`实转金额不能超过应转金额 $${record.expected_transfer.toFixed(2)}`);
-      return;
-    }
+    if (!record) return false;
 
     try {
       const { data, error } = await supabase
@@ -145,13 +140,15 @@ function App() {
       if (error) {
         console.error('❌ 更新实转金额失败:', error);
         alert(`更新失败: ${error.message}`);
-        return;
+        return false;
       }
       console.log('✅ 实转金额已更新:', newAmount);
       setRecords(prev => prev.map(item => (item.id === recordId ? (data as SettlementRecord) : item)));
+      return true;
     } catch (err) {
       console.error('❌ 异常:', err);
       alert(`更新出错: ${err}`);
+      return false;
     }
   };
 
@@ -164,13 +161,36 @@ function App() {
         return;
       }
       console.log('✅ 户口添加成功:', data);
-      // 添加到本地状态
       setAccounts(prev => [...prev, data as PaymentAccount]);
       setSelectedAccountId((data as PaymentAccount).id);
       alert(`✅ 户口 "${name}" 添加成功！`);
     } catch (err) {
       console.error('❌ 异常:', err);
       alert(`添加户口出错: ${err}`);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    const confirmed = window.confirm('确定要清空所有数据吗？此操作不可恢复。');
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const { error: recordsError } = await supabase.from('settlement_records').delete().neq('id', '');
+      if (recordsError) throw recordsError;
+
+      const { error: accountsError } = await supabase.from('payment_accounts').delete().neq('id', '');
+      if (accountsError) throw accountsError;
+
+      setRecords([]);
+      setAccounts([]);
+      setSelectedAccountId('');
+      alert('✅ 所有数据已成功清空，您可以重新开始记录。');
+    } catch (err) {
+      console.error('❌ 清空数据失败:', err);
+      alert(`清空数据失败: ${err}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -219,6 +239,7 @@ function App() {
           onVerify={handleVerifyRecord}
           onUpdateActualPaid={handleUpdateActualPaid}
           onExport={() => handleExport(records, accounts)}
+          onClearAll={handleClearAllData}
           loading={loading}
         />
       </div>

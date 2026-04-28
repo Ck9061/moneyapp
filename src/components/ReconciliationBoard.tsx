@@ -7,8 +7,9 @@ type Props = {
   totalDue: number;
   totalSent: number;
   onVerify: (record: SettlementRecord) => void;
-  onUpdateActualPaid: (recordId: string, amount: number) => void;
+  onUpdateActualPaid: (recordId: string, amount: number) => Promise<boolean>;
   onExport: () => void;
+  onClearAll: () => void;
   loading: boolean;
 };
 
@@ -20,6 +21,7 @@ export const ReconciliationBoard = ({
   onVerify,
   onUpdateActualPaid,
   onExport,
+  onClearAll,
   loading,
 }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,15 +35,18 @@ export const ReconciliationBoard = ({
     setEditValue(record.actual_paid.toString());
   };
 
-  const handleEditSave = (recordId: string, record: SettlementRecord) => {
+  const handleEditSave = async (recordId: string, record: SettlementRecord) => {
     const newAmount = Number(editValue);
     if (isNaN(newAmount)) {
       alert('请输入有效的数字');
       return;
     }
-    onUpdateActualPaid(recordId, newAmount);
-    setEditingId(null);
-    setEditValue('');
+
+    const success = await onUpdateActualPaid(recordId, newAmount);
+    if (success) {
+      setEditingId(null);
+      setEditValue('');
+    }
   };
 
   const handleEditCancel = () => {
@@ -56,20 +61,33 @@ export const ReconciliationBoard = ({
         <p className="mt-3 text-4xl font-bold">${Math.abs(totalDue - totalSent).toFixed(2)}</p>
         <p className="mt-2 text-sm opacity-90">{isPending ? '当前还有款项待转出' : '当前已清算全部应转金额'}</p>
       </div>
+      <div className="rounded-[2rem] border border-gray-100 bg-white p-4 text-sm text-slate-500 shadow-sm">
+        <p>提示：点击“实转”金额可手动编辑，或使用“全额核销”一键设置为应转金额。</p>
+      </div>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-slate-500">记录总数</p>
           <p className="mt-1 text-2xl font-semibold text-slate-900">{records.length}</p>
         </div>
-        <button
-          type="button"
-          onClick={onExport}
-          disabled={loading || records.length === 0}
-          className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          导出今日对账单
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={onExport}
+            disabled={loading || records.length === 0}
+            className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            导出今日对账单
+          </button>
+          <button
+            type="button"
+            onClick={onClearAll}
+            disabled={loading || records.length === 0}
+            className="inline-flex items-center justify-center rounded-2xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            🗑️ 清空所有数据
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
@@ -99,15 +117,20 @@ export const ReconciliationBoard = ({
                     autoFocus
                     step="0.01"
                     min="0"
-                    max={record.expected_transfer}
                   />
                 ) : (
-                  <span className="font-medium cursor-pointer hover:bg-slate-50 px-2 py-1 rounded" onClick={() => handleEditStart(record)}>
+                  <button
+                    type="button"
+                    onClick={() => handleEditStart(record)}
+                    className="font-medium cursor-pointer rounded px-2 py-1 text-left text-slate-700 transition hover:bg-slate-50"
+                  >
                     ${record.actual_paid.toFixed(2)}
-                  </span>
+                  </button>
                 )}
                 
-                <span className={diff > 0 ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold'}>${diff.toFixed(2)}</span>
+                <span className={diff > 0 ? 'text-rose-600 font-semibold' : diff === 0 ? 'text-emerald-600 font-semibold' : 'text-orange-600 font-semibold'}>
+                  {diff > 0 ? `欠 $${diff.toFixed(2)}` : diff === 0 ? '✓ 清' : `LEMON欠我 $${Math.abs(diff).toFixed(2)}`}
+                </span>
                 
                 <div className="flex gap-2">
                   {isEditing ? (
@@ -155,9 +178,6 @@ export const ReconciliationBoard = ({
           )}
         </div>
       </div>
-    </section>
-  );
-};
     </section>
   );
 };
