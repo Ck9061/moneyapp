@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from './lib/supabase';
 import { calc, CalcResult } from './lib/calc';
 import { handleExport } from './utils/exportExcel';
 import { RecordEntry } from './components/RecordEntry';
 import { ReconciliationBoard } from './components/ReconciliationBoard';
 import { AccountManager } from './components/AccountManager';
+import { SideMenu } from './components/SideMenu';
 
 export type PaymentAccount = {
   id: string;
@@ -27,6 +28,8 @@ function App() {
   const [records, setRecords] = useState<SettlementRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   const totalDue = useMemo(
     () => records.reduce((sum, item) => sum + item.expected_transfer, 0),
@@ -196,9 +199,23 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
+      <SideMenu open={menuOpen} onClose={closeMenu} />
       <div className="mx-auto max-w-4xl space-y-8">
         <header className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-500">极简金融对账</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm uppercase tracking-[0.3em] text-slate-500">极简金融对账</p>
+            <button
+              type="button"
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white transition hover:bg-slate-800"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
+          </div>
           <h1 className="text-3xl font-bold text-slate-900">今日对账看板</h1>
           <p className="max-w-2xl text-slate-600">高对比、少元素，让你立刻看清当前待结算金额与核销状态。</p>
         </header>
